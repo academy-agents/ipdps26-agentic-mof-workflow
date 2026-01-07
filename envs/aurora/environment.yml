@@ -1,0 +1,11 @@
+name: mofa
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  # Services used by the workflow
+  - parallel  # Used as a launcher
+
+  # Science apps from Conda-Forge
+  - chargemol
+  - raspa2
