@@ -50,9 +50,9 @@ def get_aurora_config(run_dir: str) -> Config:
             queue="debug",
             worker_init=(
                 "module load frameworks ; "
-                "conda activate /home/jgpaul/envs/mofa ; "
+                "cd /flare/Diaspora/alok/agents/sc25-agentic-mof-workflow ; "
+                ". ./venv/bin/activate"
                 "export ZE_FLAT_DEVICE_HIERARCHY=COMPOSITE ; "
-                f"cd /flare/proxystore/jgpaul/agentic-mof-workflow"
             ),
             walltime=user_opts["walltime"],
             scheduler_options=user_opts["scheduler_options"],
@@ -80,11 +80,9 @@ def get_aurora_config(run_dir: str) -> Config:
             account=user_opts["account"],
             queue="debug-scaling",
             worker_init=(
-                # "module load kokkos ; "
                 "module load frameworks ; "
-                "conda activate /home/jgpaul/envs/mofa ; "
-                # "export ZE_FLAT_DEVICE_HIERARCHY=COMPOSITE ; "
-                f"cd /flare/proxystore/jgpaul/agentic-mof-workflow"
+                "cd /flare/Diaspora/alok/agents/sc25-agentic-mof-workflow ; "
+                ". ./venv/bin/activate"
             ),
             walltime=user_opts["walltime"],
             scheduler_options=user_opts["scheduler_options"],

@@ -13,11 +13,11 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import parsl
-from aeris.exception import MailboxClosedError
-from aeris.exchange.redis import RedisExchange
-from aeris.launcher.executor import ExecutorLauncher
-from aeris.logging import init_logging
-from aeris.manager import Manager
+from academy.exception import MailboxClosedError
+from academy.exchange.redis import RedisExchange
+from academy.launcher.executor import ExecutorLauncher
+from academy.logging import init_logging
+from academy.manager import Manager
 from globus_compute_sdk import Executor
 from openbabel import openbabel
 from rdkit import RDLogger
@@ -228,19 +228,19 @@ def create_managers(
     polaris_endpoint: str,
     logger: logging.Logger,
 ) -> typing.Generator[dict[str, Manager], None, None]:
-    exchange = RedisExchange(hostname='localhost', port=57347)
+    exchange = RedisExchange(hostname='129.114.109.16', port=6379, password=os.env.get("REDIS_PASSWORD", None))
 
     cpu_launcher = ExecutorLauncher(Executor(cpu_endpoint), close_exchange=True)
-    polaris_launcher = ExecutorLauncher(Executor(polaris_endpoint), close_exchange=True)
+    # polaris_launcher = ExecutorLauncher(Executor(polaris_endpoint), close_exchange=True)
     thread_launcher = ExecutorLauncher(ThreadPoolExecutor(2), close_exchange=False)
 
     cpu_manager = Manager(exchange=exchange, launcher=cpu_launcher)
-    polaris_manager = Manager(exchange=exchange, launcher=polaris_launcher)
+    # polaris_manager = Manager(exchange=exchange, launcher=polaris_launcher)
     thread_manager = Manager(exchange=exchange, launcher=thread_launcher)
 
     managers = {
         "cpu": cpu_manager,
-        "polaris": polaris_manager,
+    #    "polaris": polaris_manager,
         "thread": thread_manager,
     }
 
@@ -326,7 +326,7 @@ def run(  # noqa: PLR0913
     managers["thread"].launch(generator_behavior, agent_id=generator_id)
     managers["cpu"].launch(assembler_behavior, agent_id=assembler_id)
     managers["thread"].launch(validator_behavior, agent_id=validator_id)
-    managers["polaris"].launch(optimizer_behavior, agent_id=optimizer_id)
+    managers["cpu"].launch(optimizer_behavior, agent_id=optimizer_id)
     managers["cpu"].launch(estimator_behavior, agent_id=estimator_id)
     logger.info("Launched all agents")
     
@@ -424,10 +424,10 @@ def main() -> int:
     )
     optimizer_config = OptimizerConfig(
         cp2k_cmd=compute.cp2k_cmd,
-        cp2k_dir=str(polaris_run_dir / "optimizer" / "cp2k-runs"),
+        cp2k_dir=str(ccloud_run_dir / "optimizer" / "cp2k-runs"),
         cp2k_steps=args.dft_opt_steps,
         num_workers=compute.num_optimizer_workers,
-        run_dir=str(polaris_run_dir / "optimizer"),
+        run_dir=str(ccloud_run_dir / "optimizer"),
     )
     estimator_config = EstimatorConfig(
         num_workers=compute.num_estimator_workers,

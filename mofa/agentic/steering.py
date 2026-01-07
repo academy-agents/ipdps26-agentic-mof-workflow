@@ -28,11 +28,11 @@ from typing import Any
 import ase
 import parsl
 import pymongo
-from aeris.behavior import action
-from aeris.behavior import Behavior
-from aeris.behavior import loop
-from aeris.logging import init_logging
-from aeris.handle import Handle
+from academy.behavior import action
+from academy.behavior import Behavior
+from academy.behavior import loop
+from academy.logging import init_logging
+from academy.handle import Handle
 
 from mofa import db as mofadb
 from mofa.agentic.config import AssemblerConfig
@@ -555,8 +555,8 @@ class Validator(MOFABehavior):
         self.runner = LAMMPSRunner(
             lammps_command=config.lammps_command,
             lmp_sims_root_path=config.lmp_sims_root_path,
-            # lammps_environ={'OMP_NUM_THREADS': '8', **config.lammps_environ},
-            lammps_environ=config.lammps_environ.copy(),
+            lammps_environ={'OMP_NUM_THREADS': '8', **config.lammps_environ},
+            # lammps_environ=config.lammps_environ.copy(),
             delete_finished=config.delete_finished,
             timeout=None,
         )

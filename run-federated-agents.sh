@@ -18,7 +18,7 @@ python -m mofa.agentic.run \
       --raspa-timesteps 50000 \
       --dft-opt-steps 1 \
       --compute-config federated \
-      --cpu-endpoint 166a9195-07cc-496b-96fd-8a4be5aec97a \
+      --cpu-endpoint b2675547-e5cf-4f1f-9334-fba9b83e93cc \
       --polaris-endpoint acb10b91-e811-4d03-a0fc-dc3fb23bca0d \
       --log-level INFO
       # --lammps-on-ramdisk \

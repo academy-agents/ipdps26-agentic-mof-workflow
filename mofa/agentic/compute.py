@@ -71,19 +71,22 @@ class FederatedConfig(ComputeConfig):
         # "--cpu-bind depth --depth 8 "
         # "/lus/eagle/projects/ExaMol/cp2k-2024.1/set_affinity_gpu_polaris.sh "
         # "/lus/eagle/projects/ExaMol/cp2k-2024.1/exe/local_cuda/cp2k_shell.psmp "
-        "module restore &> /dev/null && "
-        "OMP_NUM_THREADS=8 "
-        "/eagle/MOFA/lward/cp2k-2025.1/exe/local_cuda/cp2k_shell.ssmp"
+        # "module restore &> /dev/null && "
+        # "OMP_NUM_THREADS=8 "
+        # "/eagle/MOFA/lward/cp2k-2025.1/exe/local_cuda/cp2k_shell.ssmp"
+        "CP2K_DATA_DIR=/home/cc/miniforge3/envs/mofa/share/cp2k/data "
+        "OPENBLAS_NUM_THREADS=8 "
+        "cp2k_shell.ssmp"
     )
     lammps_cmd = (
         # "/flare/proxystore/jgpaul/lammps/build-cpu/lmp",
-        "/flare/proxystore/jgpaul/lammps/build-nompi-cpu/lmp",
-        # "/flare/proxystore/jgpaul/lammps/build/lmp",
-        # "-sf",
-        # "gpu",
-        # "-pk",
-        # "gpu",
-        # "1",
+        # "/flare/proxystore/jgpaul/lammps/build-nompi-cpu/lmp",
+        "/flare/Diaspora/alok/agents/lammps/build/lmp",
+        "-sf",
+        "gpu",
+        "-pk",
+        "gpu",
+        "1",
     )
     lammps_env: dict[str, str] = dataclasses.field(default_factory=dict)
 
