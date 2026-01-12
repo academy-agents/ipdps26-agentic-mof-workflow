@@ -4,7 +4,7 @@
 #PBS -l filesystems=home:grand:eagle
 #PBS -q debug-scaling
 #PBS -N mofa-test
-#PBS -A examol
+#PBS -A Diaspora
 
 hostname
 
@@ -13,7 +13,9 @@ cd ${PBS_O_WORKDIR}
 pwd
 
 # Activate the environment
-conda activate /lus/eagle/projects/ExaMol/mofa/mof-generation-at-scale/env-polaris
+module use /soft/modulefiles
+module load conda; conda activate base
+conda activate /lus/eagle/projects/Diaspora/alok/sc25-agentic-mof-workflow/env
 which python
 
 # Launch MPS on each node
@@ -36,7 +38,7 @@ python run_parallel_workflow.py \
       --retrain-freq 1 \
       --num-epochs 128 \
       --num-samples 1024 \
-      --gen-batch-size 128000 \
+      --gen-batch-size 128 \
       --simulation-budget 32768 \
       --md-timesteps 1000000 \
       --md-snapshots 10 \
@@ -45,7 +47,7 @@ python run_parallel_workflow.py \
       --dft-opt-steps 2 \
       --dft-fraction 0.25 \
       --ai-fraction 0.4 \
-      --proxy-threshold 10000000000000 \
+      --proxy-threshold 100000 \
       --compute-config polaris
 echo Python done
 

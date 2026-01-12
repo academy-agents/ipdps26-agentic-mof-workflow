@@ -472,5 +472,6 @@ class MOFRecord:
         Returns:
             JSON-format version of the object
         """
-
-        return json.dumps(asdict(self), **kwargs)
+        obj_dict = asdict(self)
+        del obj_dict['times']
+        return json.dumps(obj_dict, **kwargs)
