@@ -66,17 +66,16 @@ class FederatedConfig(ComputeConfig):
     torch_device = "xpu"
     # Runs on Polaris
     cp2k_cmd = (
-        # "module restore && "
-        # "mpiexec -n 1 --ppn 1 --env OMP_NUM_THREADS=8 --hosts $HOSTNAME "
-        # "--cpu-bind depth --depth 8 "
-        # "/lus/eagle/projects/ExaMol/cp2k-2024.1/set_affinity_gpu_polaris.sh "
-        # "/lus/eagle/projects/ExaMol/cp2k-2024.1/exe/local_cuda/cp2k_shell.psmp "
+        "mpiexec -n 1 --ppn 1 --env OMP_NUM_THREADS=8 --hosts $HOSTNAME "
+        "--cpu-bind depth --depth 8 "
+        "/grand/SuperBERT/alok/scripts/set_affinity_gpu_polaris.sh "
+        "/grand/SuperBERT/alok/cp2k/build/bin/cp2k_shell.psmp "
         # "module restore &> /dev/null && "
         # "OMP_NUM_THREADS=8 "
         # "/eagle/MOFA/lward/cp2k-2025.1/exe/local_cuda/cp2k_shell.ssmp"
-        "CP2K_DATA_DIR=/home/cc/miniforge3/envs/mofa/share/cp2k/data "
-        "OPENBLAS_NUM_THREADS=8 "
-        "cp2k_shell.ssmp"
+        #"CP2K_DATA_DIR=/home/cc/miniforge3/envs/mofa/share/cp2k/data "
+        #"OPENBLAS_NUM_THREADS=8 "
+        #"cp2k_shell.ssmp"
     )
     lammps_cmd = (
         # "/flare/proxystore/jgpaul/lammps/build-cpu/lmp",

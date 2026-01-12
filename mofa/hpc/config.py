@@ -261,11 +261,12 @@ class PolarisConfig(HPCConfig):
     @property
     def cp2k_cmd(self):
         # TODO (wardlt): Turn these into factory classes to ensure everything gets set on build
+        # mpiexec -n 4 -ppn 4 /grand/SuperBERT/alok/scripts/set_affinity_gpu_polaris.sh /grand/SuperBERT/alok/cp2k/build/bin/cp2k_shell.psmp
         assert self.run_dir is not None, 'This must be run after the Parsl config is built'
         return (f'mpiexec -n {self.nodes_per_cp2k * 4} --ppn 4 --cpu-bind depth --depth 8 -env OMP_NUM_THREADS=8 '
                 f'--hostfile {self.run_dir}/cp2k-hostfiles/local_hostfile.`printf %03d $PARSL_WORKER_RANK` '
-                '/lus/eagle/projects/Diaspora/alok/cp2k-2025.1/set_affinity_gpu_polaris.sh '
-                '/lus/eagle/projects/Diaspora/alok/cp2k-2025.1/exe/local_cuda/cp2k_shell.psmp')
+                '/grand/SuperBERT/alok/scripts/set_affinity_gpu_polaris.sh '
+                '/grand/SuperBERT/alok/cp2k/build/bin/cp2k_shell.psmp')
 
     @cached_property
     def hosts(self):
