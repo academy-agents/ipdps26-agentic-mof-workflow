@@ -231,7 +231,7 @@ class PolarisConfig(HPCConfig):
 
     torch_device = 'cuda'
     lammps_cmd = ('/lus/eagle/projects/Diaspora/alok/bin/lmp '
-                  '-sf gpu -pk gpu 1').split()
+                  '-sf gpu -pk gpu 1 neigh no').split()
     lammps_env = {}
     run_dir: Path | None = None  # Set when building the configuration
 

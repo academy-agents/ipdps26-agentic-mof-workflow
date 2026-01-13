@@ -64,19 +64,25 @@ class FederatedConfig(ComputeConfig):
     num_optimizer_workers = 8
 
     torch_device = "xpu"
-    # Runs on Polaris
-    cp2k_cmd = (
-        "mpiexec -n 1 --ppn 1 --env OMP_NUM_THREADS=8 --hosts $HOSTNAME "
-        "--cpu-bind depth --depth 8 "
-        "/grand/SuperBERT/alok/scripts/set_affinity_gpu_polaris.sh "
-        "/grand/SuperBERT/alok/cp2k/build/bin/cp2k_shell.psmp "
-        # "module restore &> /dev/null && "
-        # "OMP_NUM_THREADS=8 "
-        # "/eagle/MOFA/lward/cp2k-2025.1/exe/local_cuda/cp2k_shell.ssmp"
-        #"CP2K_DATA_DIR=/home/cc/miniforge3/envs/mofa/share/cp2k/data "
-        #"OPENBLAS_NUM_THREADS=8 "
-        #"cp2k_shell.ssmp"
-    )
+
+    @property
+    def cp2k_cmd(self) -> str:
+        worker_id = str(os.environ("PARSL_WORKER_RANK"))
+        cpu_map = {
+            "0": "list:24-31",
+            "1": "list:16-23",
+            "2": "list:8-15",
+            "3": "list:0-7",
+        }
+        cpu_ids = cpu_map[worker_id]
+
+        # Runs on Polaris
+        cp2k_cmd = (
+            "mpiexec -n 1 --ppn 1 --env OMP_NUM_THREADS=8 "
+            f"CUDA_VISIBLE_DEVICES={worker_id} --hosts $HOSTNAME "
+            f"--cpu-bind {cpu_map}"
+            "/grand/SuperBERT/alok/cp2k/build/bin/cp2k_shell.psmp"
+        )
     lammps_cmd = (
         # "/flare/proxystore/jgpaul/lammps/build-cpu/lmp",
         # "/flare/proxystore/jgpaul/lammps/build-nompi-cpu/lmp",
