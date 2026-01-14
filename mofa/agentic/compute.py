@@ -81,7 +81,7 @@ class FederatedConfig(ComputeConfig):
     # TODO: Implement CPU binding for performance
     cp2k_cmd = (
         "mpiexec -n 2 --ppn 2 --env OMP_NUM_THREADS=4 "
-        "--hosts $HOSTNAME"
+        "--hosts $HOSTNAME "
         "/grand/SuperBERT/alok/cp2k/build/bin/cp2k_shell.psmp"
     )
 

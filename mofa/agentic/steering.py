@@ -839,6 +839,9 @@ class Optimizer(MOFABehavior):
             record, atoms = future.result()
         except Exception:
             self.logger.exception("Failure in optimize-cells task")
+            if self.submit_finished.is_set() and  len(self.optimize_tasks) == 0:
+                self.logger.info("Done processing all optimize tasks")
+                self.finished.set()
             return
 
         self.logger.info("Completed optimize-cells task (name=%s)", record.name)
@@ -856,7 +859,7 @@ class Optimizer(MOFABehavior):
             self.logger.info("Submitted mofs to estimator.")
 
         if self.submit_finished.is_set() and len(self.optimize_tasks) == 0:
-            self.logger.info("Done processing all optimize tasks.")
+            self.logger.info("Done processing all optimize tasks")
             self.finished.set()
 
 class Estimator(MOFABehavior):
@@ -948,6 +951,9 @@ class Estimator(MOFABehavior):
             name, storage_mean, storage_std = future.result()
         except Exception:
             self.logger.exception("Failure in estimate-adsorption task")
+            if self.submit_finished.is_set() and  len(self.estimate_tasks) == 0:
+                self.logger.info("Estimator finished all work")
+                self.finished.set()
             return
 
         self.logger.info("Completed estimate-adsorption task (name=%s)", name)
