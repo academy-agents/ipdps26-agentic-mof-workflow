@@ -131,8 +131,9 @@ def get_polaris_config(run_dir: str) -> Config:
     user_opts = {
         "worker_init": (
             "module use /soft/modulefiles; module load conda; "
-            "conda activate /eagle/Diaspora/alok/agentic-mof-workflow/env; "
-            "cd /grand/SuperBERT/alok/agentic-mof-workflow/"
+            "conda activate /eagle/Diaspora/alok/sc25-agentic-mof-workflow/env; "
+            "source /eagle/Diaspora/alok/sc25-agentic-mof-workflow/bin/enable_mps_polaris.sh; "
+            "cd /grand/SuperBERT/alok/sc25-agentic-mof-workflow/"
         ),
         "scheduler_options": "#PBS -l filesystems=home:eagle:grand",
         "account": "APSDataAnalysis",
@@ -149,15 +150,11 @@ def get_polaris_config(run_dir: str) -> Config:
         heartbeat_threshold=120,
         available_accelerators=user_opts["available_accelerators"],
         max_workers_per_node=user_opts["available_accelerators"],
-        cores_per_worker=8,
-        cpu_affinity="block-reverse",
-        # This give optimal binding of threads to GPUs on a Polaris node
-        # cpu_affinity="list:24-31,56-63:16-23,48-55:8-15,40-47:0-7,32-39",
         prefetch_capacity=0,
         provider=PBSProProvider(
             launcher=MpiExecLauncher(
                 bind_cmd="--cpu-bind",
-                overrides="--depth=64 --ppn 1",
+                overrides="--depth=32 --ppn 1",
             ),
             account=user_opts["account"],
             queue=user_opts["queue"],

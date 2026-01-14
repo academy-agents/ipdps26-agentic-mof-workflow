@@ -82,6 +82,9 @@ def validate_structure_task(
         report_frequency=report_frequency,
     )
 
+@python_app
+def test_polaris_executor():
+    return "Hello World"
 
 @python_app
 def optimize_cells_and_compute_charges_task(

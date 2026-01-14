@@ -1,10 +1,10 @@
 #!/bin/bash -le
-#PBS -l select=6:system=polaris
-#PBS -l walltime=0:60:00
+#PBS -l select=10:system=polaris
+#PBS -l walltime=03:00:00
 #PBS -l filesystems=home:grand:eagle
-#PBS -q debug-scaling
+#PBS -q prod
 #PBS -N mofa-test
-#PBS -A Diaspora
+#PBS -A APSDataAnalysis
 
 hostname
 
@@ -15,7 +15,7 @@ pwd
 # Activate the environment
 module use /soft/modulefiles
 module load conda; conda activate base
-conda activate /lus/eagle/projects/Diaspora/alok/sc25-agentic-mof-workflow/env
+conda activate /eagle/Diaspora/alok/sc25-agentic-mof-workflow/env
 which python
 
 # Launch MPS on each node
@@ -33,18 +33,18 @@ python run_parallel_workflow.py \
       --ligand-templates input-files/zn-paddle-pillar/template_*_prompt.yml \
       --generator-path models/geom-300k/geom_difflinker_epoch=997_new.ckpt \
       --generator-config-path models/geom-300k/config-tf32-a100.yaml \
-      --maximum-train-size 8192 \
-      --maximum-strain 0.5 \
-      --retrain-freq 1 \
+      --maximum-train-size 2048 \
+      --maximum-strain 0.25 \
+      --retrain-freq 64 \
       --num-epochs 128 \
       --num-samples 1024 \
       --gen-batch-size 128 \
       --simulation-budget 32768 \
-      --md-timesteps 1000000 \
+      --md-timesteps 10000 \
       --md-snapshots 10 \
-      --raspa-timesteps 10000 \
+      --raspa-timesteps 50000 \
       --lammps-on-ramdisk \
-      --dft-opt-steps 2 \
+      --dft-opt-steps 1 \
       --dft-fraction 0.25 \
       --ai-fraction 0.4 \
       --proxy-threshold 100000 \

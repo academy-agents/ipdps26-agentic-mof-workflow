@@ -326,6 +326,7 @@ class PolarisConfig(HPCConfig):
 module use /soft/modulefiles
 module load conda; conda activate base
 module list
+source /home/alokvk2/.bashrc
 conda activate /lus/eagle/projects/Diaspora/alok/sc25-agentic-mof-workflow/env
 which python
 hostname"""
