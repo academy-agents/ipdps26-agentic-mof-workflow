@@ -311,7 +311,7 @@ def run(  # noqa: PLR0913
     assembler_handle = manager.launch(assembler_behavior, agent_id=assembler_id, launcher="cpu")
     validator_handle = manager.launch(validator_behavior, agent_id=validator_id, launcher="thread")
     optimizer_handle = manager.launch(optimizer_behavior, agent_id=optimizer_id, launcher="polaris")
-    extimator_handle = manager.launch(estimator_behavior, agent_id=estimator_id, launcher="cpu")
+    estimator_handle = manager.launch(estimator_behavior, agent_id=estimator_id, launcher="cpu")
     logger.info("Launched all agents")
     
     try:

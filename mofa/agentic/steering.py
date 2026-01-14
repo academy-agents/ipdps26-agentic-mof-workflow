@@ -690,10 +690,19 @@ class Validator(MOFABehavior):
                 record.name,
                 100 * strain,
             )
-            self.optimizer.action("submit_mof", record).result(timeout=ACTION_TIMEOUT)
-            self.logger.info("Submitted structure to optimizer (name=%s)", record.name)
-            self.database.action("create_record", record).result(timeout=ACTION_TIMEOUT)
-            self.logger.info("Submitted record to database (name=%s)", record.name)
+
+            try:
+                self.optimizer.action("submit_mof", record).result(timeout=ACTION_TIMEOUT)
+                self.logger.info("Submitted structure to optimizer (name=%s)", record.name)
+                self.database.action("create_record", record).result(timeout=ACTION_TIMEOUT)
+                self.logger.info("Submitted record to database (name=%s)", record.name)
+            except TimeoutError:
+                # This is a hack because we get timeout errors during shutdown
+                # The root problem is the listening loop is shutdown so futures stop resolving
+                if shutdown.is_set():
+                    break
+                else:
+                    raise
 
     def _validate_task_callback(self, future: Future) -> None:
         self.logger.info("END validate-structures %s", future._id)
