@@ -32,16 +32,16 @@ def get_aurora_config(run_dir: str) -> Config:
     )
     user_opts = {
         "scheduler_options": "#PBS -l filesystems=home:flare",
-        "account": "proxystore",
+        "account": "Diaspora",
         "walltime": "1:00:00",
-        "cpus_per_node": 208,
+        "cpus_per_node": 204,
     }
 
     ai_executor = HighThroughputExecutor(
         label="generator",
         available_accelerators=tile_names,
         max_workers_per_node=len(tile_names),
-        cpu_affinity=cpu_affinity,
+        cpu_affinity="block",
         prefetch_capacity=0,
         heartbeat_period=15,
         heartbeat_threshold=120,
@@ -51,8 +51,9 @@ def get_aurora_config(run_dir: str) -> Config:
             worker_init=(
                 "module load frameworks ; "
                 "cd /flare/Diaspora/alok/agents/sc25-agentic-mof-workflow ; "
-                ". ./venv/bin/activate"
+                ". ./venv/bin/activate ; "
                 "export ZE_FLAT_DEVICE_HIERARCHY=COMPOSITE ; "
+                "export TMPDIR=/tmp"
             ),
             walltime=user_opts["walltime"],
             scheduler_options=user_opts["scheduler_options"],
@@ -68,7 +69,7 @@ def get_aurora_config(run_dir: str) -> Config:
     
     val_executor = HighThroughputExecutor(
         label="validator",
-        available_accelerators=tile_names,
+        available_accelerators=12, # tile_names,
         max_workers_per_node=len(tile_names),
         # TODO
         cores_per_worker=16,
@@ -82,11 +83,12 @@ def get_aurora_config(run_dir: str) -> Config:
             worker_init=(
                 "module load frameworks ; "
                 "cd /flare/Diaspora/alok/agents/sc25-agentic-mof-workflow ; "
-                ". ./venv/bin/activate"
+                ". ./venv/bin/activate ; "
+                "export TMPDIR=/tmp"
             ),
             walltime=user_opts["walltime"],
             scheduler_options=user_opts["scheduler_options"],
-            launcher=MpiExecLauncher(bind_cmd="--cpu-bind", overrides="--depth=208 --ppn 1"),
+            launcher=MpiExecLauncher(bind_cmd="--cpu-bind", overrides="--depth=204 --ppn 1"),
             select_options="",
             nodes_per_block=2,
             init_blocks=0,
@@ -130,7 +132,7 @@ def get_polaris_config(run_dir: str) -> Config:
         "worker_init": (
             "module use /soft/modulefiles; module load conda; "
             "conda activate /eagle/Diaspora/alok/agentic-mof-workflow/env; "
-            f"cd /grand/SuperBERT/alok/agentic-mof-workflow/"
+            "cd /grand/SuperBERT/alok/agentic-mof-workflow/"
         ),
         "scheduler_options": "#PBS -l filesystems=home:eagle:grand",
         "account": "APSDataAnalysis",

@@ -21,6 +21,15 @@ from mofa.simulation.lammps import LAMMPSRunner
 from mofa.simulation.raspa import RASPARunner
 
 
+
+@python_app(executors=["generator"])
+def test_generator_executor() -> str:
+    return "Hello World"
+
+@python_app(executors=["validator"])
+def test_validator_executor() -> str:
+    return "Hello World"
+
 @python_app(executors=["generator"])
 def generate_ligands_task(  # noqa: PLR0913
     model: str | pathlib.Path,

@@ -231,12 +231,12 @@ def create_managers(
     exchange = RedisExchange(hostname='129.114.109.16', port=6379, password=os.getenv("REDIS_PASSWORD", None))
 
     cpu_launcher = ExecutorLauncher(Executor(cpu_endpoint), close_exchange=True)
-    # polaris_launcher = ExecutorLauncher(Executor(polaris_endpoint), close_exchange=True)
+    polaris_launcher = ExecutorLauncher(Executor(polaris_endpoint), close_exchange=True)
     thread_launcher = ExecutorLauncher(ThreadPoolExecutor(2), close_exchange=False)
 
     launchers = {
         "cpu": cpu_launcher,
-    #    "polaris": polaris_launcher,
+        "polaris": polaris_launcher,
         "thread": thread_launcher,
     }
 
@@ -306,20 +306,34 @@ def run(  # noqa: PLR0913
     logger.info("Initialized agent behaviors")
 
     # Launch agents using preregistered IDs
-    manager.launch(database_behavior, agent_id=database_id, launcher="cpu")
-    manager.launch(generator_behavior, agent_id=generator_id, launcher="thread")
-    manager.launch(assembler_behavior, agent_id=assembler_id, launcher="cpu")
-    manager.launch(validator_behavior, agent_id=validator_id, launcher="thread")
-    manager.launch(optimizer_behavior, agent_id=optimizer_id, launcher="cpu")
-    manager.launch(estimator_behavior, agent_id=estimator_id, launcher="cpu")
+    database_handle = manager.launch(database_behavior, agent_id=database_id, launcher="cpu")
+    generator_handle = manager.launch(generator_behavior, agent_id=generator_id, launcher="thread")
+    assembler_handle = manager.launch(assembler_behavior, agent_id=assembler_id, launcher="cpu")
+    validator_handle = manager.launch(validator_behavior, agent_id=validator_id, launcher="thread")
+    optimizer_handle = manager.launch(optimizer_behavior, agent_id=optimizer_id, launcher="polaris")
+    extimator_handle = manager.launch(estimator_behavior, agent_id=estimator_id, launcher="cpu")
     logger.info("Launched all agents")
     
     try:
+        # Wait for simulation budget to be exhausted
         manager.wait(validator_id)
+
+        # Shutdown creation of new MOFs
+        generator_handle.shutdown()
+        assembler_handle.shutdown()
+
+        # Wait for work in pipeline to finish
+        optimizer_handle.ping()
+        optimizer_handle.shutdown_when_finished()
+        manager.wait(optimizer_id)
+
+        estimator_handle.ping()
+        estimator_handle.shutdown_when_finished()
+        manager.wait(estimator_id)
     except KeyboardInterrupt:
         # Exiting the context manager will cause the agents to be shutdown.
         logger.info("Requesting validator to shutdown...")
-        managers["thread"].shutdown(validator_id, blocking=True)
+        manager.shutdown(validator_id, blocking=True)
 
 
 def main() -> int:
@@ -358,7 +372,7 @@ def main() -> int:
 
     ccloud_run_dir = pathlib.Path(f"/home/cc/mofa-runs/{start_time}")
     polaris_run_dir = pathlib.Path(
-        f"/eagle/MOFA/jgpaul/scratch/mofa-runs/{start_time}",
+        f"/grand/SuperBERT/alok/mofa-runs/{start_time}",
     )
 
     database_config = DatabaseConfig(
@@ -408,10 +422,10 @@ def main() -> int:
     )
     optimizer_config = OptimizerConfig(
         cp2k_cmd=compute.cp2k_cmd,
-        cp2k_dir=str(ccloud_run_dir / "optimizer" / "cp2k-runs"),
+        cp2k_dir=str(polaris_run_dir / "optimizer" / "cp2k-runs"),
         cp2k_steps=args.dft_opt_steps,
         num_workers=compute.num_optimizer_workers,
-        run_dir=str(ccloud_run_dir / "optimizer"),
+        run_dir=str(polaris_run_dir / "optimizer"),
     )
     estimator_config = EstimatorConfig(
         num_workers=compute.num_estimator_workers,

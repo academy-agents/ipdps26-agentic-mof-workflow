@@ -65,33 +65,42 @@ class FederatedConfig(ComputeConfig):
 
     torch_device = "xpu"
 
-    @property
-    def cp2k_cmd(self) -> str:
-        worker_id = str(os.environ("PARSL_WORKER_RANK"))
-        cpu_map = {
-            "0": "list:24-31",
-            "1": "list:16-23",
-            "2": "list:8-15",
-            "3": "list:0-7",
-        }
-        cpu_ids = cpu_map[worker_id]
+    # @property
+    # def cp2k_cmd(self) -> str:
+    #     worker_id = str(os.environ("PARSL_WORKER_RANK"))
+    #     cpu_map = {
+    #         "0": "list:24-31",
+    #         "1": "list:16-23",
+    #         "2": "list:8-15",
+    #         "3": "list:0-7",
+    #     }
+    #     cpu_ids = cpu_map[worker_id]
+    # 
+    
+    # Runs on Polaris
+    # TODO: Implement CPU binding for performance
+    cp2k_cmd = (
+        "mpiexec -n 1 --ppn 1 --env OMP_NUM_THREADS=8 "
+        "--hosts $HOSTNAME"
+        "/grand/SuperBERT/alok/cp2k/build/bin/cp2k_shell.psmp"
+    )
 
-        # Runs on Polaris
-        cp2k_cmd = (
-            "mpiexec -n 1 --ppn 1 --env OMP_NUM_THREADS=8 "
-            f"CUDA_VISIBLE_DEVICES={worker_id} --hosts $HOSTNAME "
-            f"--cpu-bind {cpu_map}"
-            "/grand/SuperBERT/alok/cp2k/build/bin/cp2k_shell.psmp"
-        )
     lammps_cmd = (
         # "/flare/proxystore/jgpaul/lammps/build-cpu/lmp",
         # "/flare/proxystore/jgpaul/lammps/build-nompi-cpu/lmp",
         "/flare/Diaspora/alok/agents/lammps/build/lmp",
         "-sf",
+        "hybrid",
         "gpu",
+        "omp",
         "-pk",
         "gpu",
         "1",
+        "neigh",
+        "no",
+        "-pk",
+        "omp",
+        "16",
     )
     lammps_env: dict[str, str] = dataclasses.field(default_factory=dict)
 

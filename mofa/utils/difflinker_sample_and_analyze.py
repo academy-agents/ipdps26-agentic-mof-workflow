@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Iterator
 import os
-
+import pathlib
 
 import socket
 import torch
@@ -83,6 +83,7 @@ def main_run(templates: list[LigandTemplate],
             return sizes
 
     # Pull the model from disk, evicting the old one if needed
+    torch.serialization.add_safe_globals([pathlib.PosixPath])
     ddpm = load_model(model, device)
 
     # If xpu, optimize
