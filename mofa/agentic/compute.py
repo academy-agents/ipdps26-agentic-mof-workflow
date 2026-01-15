@@ -79,11 +79,7 @@ class FederatedConfig(ComputeConfig):
     
     # Runs on Polaris
     # TODO: Implement CPU binding for performance
-    cp2k_cmd = (
-        "mpiexec -n 2 --ppn 2 --env OMP_NUM_THREADS=4 "
-        "--hosts $HOSTNAME "
-        "/grand/SuperBERT/alok/cp2k/build/bin/cp2k_shell.psmp"
-    )
+    cp2k_cmd = "mpiexec -n 2 -ppn 2  --env OMP_NUM_THREADS=8 --hosts $HOSTNAME /grand/SuperBERT/alok/cp2k/build/bin/cp2k_shell.psmp"
 
     lammps_cmd = (
         # "/flare/proxystore/jgpaul/lammps/build-cpu/lmp",

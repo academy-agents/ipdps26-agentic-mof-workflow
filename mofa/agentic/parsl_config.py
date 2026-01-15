@@ -116,7 +116,10 @@ def get_local_config(
         max_workers_per_node=workers_per_node,
         address=address_by_hostname(),
         cores_per_worker=1,
-        provider=LocalProvider(init_blocks=0, max_blocks=1),
+        provider=LocalProvider(
+            init_blocks=0,
+            max_blocks=1,
+        )
     )
     return Config(
         executors=[executor],
@@ -133,7 +136,8 @@ def get_polaris_config(run_dir: str) -> Config:
             "module use /soft/modulefiles; module load conda; "
             "conda activate /eagle/Diaspora/alok/sc25-agentic-mof-workflow/env; "
             "source /eagle/Diaspora/alok/sc25-agentic-mof-workflow/bin/enable_mps_polaris.sh; "
-            "cd /grand/SuperBERT/alok/sc25-agentic-mof-workflow/"
+            "cd /grand/SuperBERT/alok/sc25-agentic-mof-workflow/ ; "
+            "export TMPDIR=/tmp"
         ),
         "scheduler_options": "#PBS -l filesystems=home:eagle:grand",
         "account": "APSDataAnalysis",
@@ -149,7 +153,8 @@ def get_polaris_config(run_dir: str) -> Config:
         heartbeat_period=15,
         heartbeat_threshold=120,
         available_accelerators=user_opts["available_accelerators"],
-        max_workers_per_node=user_opts["available_accelerators"],
+        max_workers_per_node=4, # user_opts["available_accelerators"],
+        cores_per_worker=1,
         prefetch_capacity=0,
         provider=PBSProProvider(
             launcher=MpiExecLauncher(
