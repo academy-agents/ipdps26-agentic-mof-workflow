@@ -502,6 +502,7 @@ class MOFAThinker(BaseThinker, AbstractContextManager):
                 )
                 self.logger.info(f'Submitted {record.name} to run with CP2K')
                 time.sleep(0.5)
+                return
 
             self.logger.info('No MOFs ready for CP2K. Waiting for MD to finish')
             self.cp2k_ready.clear()
