@@ -136,6 +136,8 @@ def get_polaris_config(run_dir: str) -> Config:
             "module use /soft/modulefiles; module load conda; "
             "conda activate /eagle/Diaspora/alok/sc25-agentic-mof-workflow/env; "
             "cd /grand/SuperBERT/alok/sc25-agentic-mof-workflow/ ; "
+            "rm -rd cp2k-hosts; mkdir cp2k-hosts ; "
+            "split --lines=1 --numeric-suffixes=1 --suffix-length=2 $PBS_NODEFILE cp2k-hosts/local_hostfile. ; " # Create single node files for cp2k
             "export TMPDIR=/tmp"
         ),
         "scheduler_options": "#PBS -l filesystems=home:eagle:grand",
@@ -152,7 +154,7 @@ def get_polaris_config(run_dir: str) -> Config:
         heartbeat_period=15,
         heartbeat_threshold=120,
         available_accelerators=user_opts["available_accelerators"],
-        max_workers_per_node=1, # user_opts["available_accelerators"],
+        max_workers_per_node=user_opts["nodes_per_block"],
         prefetch_capacity=0,
         provider=PBSProProvider(
             launcher=SimpleLauncher(),
