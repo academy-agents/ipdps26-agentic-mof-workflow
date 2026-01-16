@@ -137,7 +137,7 @@ def get_polaris_config(run_dir: str) -> Config:
             "conda activate /eagle/Diaspora/alok/sc25-agentic-mof-workflow/env; "
             "cd /grand/SuperBERT/alok/sc25-agentic-mof-workflow/ ; "
             "rm -rd cp2k-hosts; mkdir cp2k-hosts ; "
-            "split --lines=1 --numeric-suffixes=1 --suffix-length=2 $PBS_NODEFILE cp2k-hosts/local_hostfile. ; " # Create single node files for cp2k
+            "split --lines=1 -d --suffix-length=2 $PBS_NODEFILE cp2k-hosts/local_hostfile. ; " # Create single node files for cp2k
             "export TMPDIR=/tmp"
         ),
         "scheduler_options": "#PBS -l filesystems=home:eagle:grand",

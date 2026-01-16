@@ -80,7 +80,7 @@ class FederatedConfig(ComputeConfig):
     # Runs on Polaris
     # TODO: Implement CPU binding for performance
     cp2k_cmd = (f'mpiexec -n 4 --ppn 4 --cpu-bind depth --depth 8 -env OMP_NUM_THREADS=8'
-                '--hostfile /grand/SuperBERT/alok/cp2k-hosts/local_hostfile.`printf %02d $PARSL_WORKER_RANK` '
+                '--hostfile /grand/SuperBERT/alok/sc25-agentic-mof-workflow/cp2k-hosts/local_hostfile.`printf %02d $PARSL_WORKER_RANK` '
                 '/grand/SuperBERT/alok/scripts/set_affinity_gpu_polaris.sh '
                 '/grand/SuperBERT/alok/cp2k/build/bin/cp2k_shell.psmp')
 
