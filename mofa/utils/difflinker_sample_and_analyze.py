@@ -83,7 +83,7 @@ def main_run(templates: list[LigandTemplate],
             return sizes
 
     # Pull the model from disk, evicting the old one if needed
-    torch.serialization.add_safe_globals([pathlib.PosixPath])
+    # Needed for torch>=2.6 torch.serialization.add_safe_globals([pathlib.PosixPath])
     ddpm = load_model(model, device)
 
     # If xpu, optimize

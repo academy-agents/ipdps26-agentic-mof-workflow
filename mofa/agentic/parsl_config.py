@@ -135,7 +135,6 @@ def get_polaris_config(run_dir: str) -> Config:
         "worker_init": (
             "module use /soft/modulefiles; module load conda; "
             "conda activate /eagle/Diaspora/alok/sc25-agentic-mof-workflow/env; "
-            "source /eagle/Diaspora/alok/sc25-agentic-mof-workflow/bin/enable_mps_polaris.sh; "
             "cd /grand/SuperBERT/alok/sc25-agentic-mof-workflow/ ; "
             "export TMPDIR=/tmp"
         ),
@@ -153,14 +152,10 @@ def get_polaris_config(run_dir: str) -> Config:
         heartbeat_period=15,
         heartbeat_threshold=120,
         available_accelerators=user_opts["available_accelerators"],
-        max_workers_per_node=4, # user_opts["available_accelerators"],
-        cores_per_worker=1,
+        max_workers_per_node=1, # user_opts["available_accelerators"],
         prefetch_capacity=0,
         provider=PBSProProvider(
-            launcher=MpiExecLauncher(
-                bind_cmd="--cpu-bind",
-                overrides="--depth=32 --ppn 1",
-            ),
+            launcher=SimpleLauncher(),
             account=user_opts["account"],
             queue=user_opts["queue"],
             select_options="ngpus=4",

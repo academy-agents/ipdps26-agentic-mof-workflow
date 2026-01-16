@@ -230,14 +230,14 @@ class PolarisConfig(HPCConfig):
     """Configuration used on Polaris"""
 
     torch_device = 'cuda'
-    lammps_cmd = ('/lus/eagle/projects/Diaspora/alok/bin/lmp '
+    lammps_cmd = ('/lus/eagle/projects/Diaspora/alok/lammps/build/lmp '
                   '-sf gpu -pk gpu 1 neigh no').split()
     lammps_env = {}
     run_dir: Path | None = None  # Set when building the configuration
 
-    nodes_per_cp2k: int = 2
+    nodes_per_cp2k: int = 1
     """Number of nodes per CP2K task"""
-    lammps_per_gpu: int = 4
+    lammps_per_gpu: int = 1
     """Number of LAMMPS to run per GPU"""
 
     ai_hosts: list[str] = field(default_factory=list)
@@ -325,12 +325,13 @@ class PolarisConfig(HPCConfig):
         worker_init = """
 module use /soft/modulefiles
 module load conda; conda activate base
-module list
-source /home/alokvk2/.bashrc
-conda activate /lus/eagle/projects/Diaspora/alok/sc25-agentic-mof-workflow/env
+conda activate /eagle/Diaspora/alok/sc25-agentic-mof-workflow/env
+cd /grand/SuperBERT/alok/sc25-agentic-mof-workflow
+export OPENBLAS_NUM_THREADS=1
+export TMPDIR=/tmp
 which python
-hostname"""
-
+hostname
+"""
         # Make the nodefiles for the CP2K workers
         nodefile_path = run_dir / 'cp2k-hostfiles'
         nodefile_path.mkdir(parents=True)
@@ -353,11 +354,12 @@ hostname"""
             HighThroughputExecutor(
                 label='inf',
                 max_workers_per_node=4,
+                cores_per_worker=1,
                 cpu_affinity='list:' + ":".join(ai_cores),
                 available_accelerators=4,
                 provider=LocalProvider(
                     launcher=WrappedLauncher(
-                        f"mpiexec -n {len(self.ai_hosts) - 1} --ppn 1 --hostfile {ai_nodefile} --depth=64 --cpu-bind depth"
+                        f"mpiexec -n {len(self.ai_hosts) - 1} --ppn 1 --hostfile {ai_nodefile} --depth=32 --cpu-bind depth"
                     ),
                     worker_init=worker_init,
                     min_blocks=1,
@@ -367,9 +369,10 @@ hostname"""
             HighThroughputExecutor(
                 label='train',
                 max_workers_per_node=1,
+                cores_per_worker=32,
                 provider=LocalProvider(
                     launcher=WrappedLauncher(
-                        f"mpiexec -n 1 --ppn 1 --host {self.ai_hosts[0]} --depth=64 --cpu-bind depth"
+                        f"mpiexec -n 1 --ppn 1 --host {self.ai_hosts[0]} --depth=32 --cpu-bind depth"
                     ),
                     worker_init=worker_init,
                     min_blocks=1,
@@ -383,7 +386,7 @@ hostname"""
                 available_accelerators=lammps_per_node,
                 provider=LocalProvider(
                     launcher=WrappedLauncher(
-                        f"mpiexec -n {len(self.lammps_hosts)} --ppn 1 --hostfile {lammps_nodefile} --depth=64 --cpu-bind depth"
+                        f"parallel --env _ --nonall --sshloginfile {lammps_nodefile}"
                     ),
                     worker_init=worker_init,
                     min_blocks=1,
@@ -403,10 +406,11 @@ hostname"""
             HighThroughputExecutor(
                 label='helper',
                 max_workers_per_node=len(helper_cores),
+                cores_per_worker=1,
                 cpu_affinity='list:' + ":".join(helper_cores),
                 provider=LocalProvider(
                     launcher=WrappedLauncher(
-                        f"mpiexec -n {len(self.lammps_hosts)} --ppn 1 --hostfile {lammps_nodefile} --depth=64 --cpu-bind depth"
+                        f"parallel --env _ --nonall  --sshloginfile {lammps_nodefile}"
                     ),
                     worker_init=worker_init,
                     min_blocks=1,

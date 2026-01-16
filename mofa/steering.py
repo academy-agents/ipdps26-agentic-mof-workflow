@@ -1,5 +1,6 @@
 """Steering algorithm used by the parallel workflow"""
 import shutil
+import time
 from collections import deque, defaultdict
 from contextlib import AbstractContextManager
 from csv import DictWriter
@@ -153,6 +154,8 @@ class MOFAThinker(BaseThinker, AbstractContextManager):
     @task_submitter(task_type='generation')
     def submit_generation(self):
         """Submit MOF generation tasks when resources are available"""
+        if self.done.is_set():
+            return
 
         ligand_id, size = self.generate_queue.popleft()
         ligand = self.generator_config.templates[ligand_id]
@@ -178,13 +181,14 @@ class MOFAThinker(BaseThinker, AbstractContextManager):
 
         # The generation topic includes both the generator and process functions
         self.logger.info(f'Generator task intermediate={not result.complete} for anchor_type={anchor_type} size={size} finished')
-        if result.complete:  # The generate method has finished making ligands
+        if result.method == 'run_generator':  # The generate method has finished making ligands
             # Start a new task
             self.rec.release('generation')
             with self.generate_write_lock:
                 print(result.json(exclude={'inputs', 'value'}), file=self._output_files['generation-results'], flush=True)
         else:
             # The message contains the ligands
+            self.logger.info(f'Pushing linkers to the processing queue. Backlog: {self.ligand_process_queue.qsize()}')
             self.ligand_process_queue.put(result)
 
         if not result.success:
@@ -261,6 +265,7 @@ class MOFAThinker(BaseThinker, AbstractContextManager):
                 break
 
         # Submit the assembly task
+        self.logger.info('Submitting batch of assembly tasks')
         self.queues.send_inputs(
             dict((k, list(v)) for k, v in self.ligand_assembly_queue.items()),
             [self.node_template],
@@ -347,6 +352,10 @@ class MOFAThinker(BaseThinker, AbstractContextManager):
             self.simulations_left -= 1
             self.logger.info(f'Successful computation. Budget remaining: {self.simulations_left}')
         print(result.json(exclude={'inputs', 'value'}), file=self._output_files['simulation-results'], flush=True)
+
+        if self.simulations_left == 0:
+            self.done.set()
+            self.logger.info('Finished running LAMMPS simulations. Will start inishing all remaining work')
 
     @agent()
     def process_md_results(self):
@@ -492,7 +501,7 @@ class MOFAThinker(BaseThinker, AbstractContextManager):
                     task_info={'mof': record.name}
                 )
                 self.logger.info(f'Submitted {record.name} to run with CP2K')
-                return
+                time.sleep(0.5)
 
             self.logger.info('No MOFs ready for CP2K. Waiting for MD to finish')
             self.cp2k_ready.clear()

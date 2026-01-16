@@ -1,8 +1,8 @@
 #!/bin/bash -le
-#PBS -l select=10:system=polaris
-#PBS -l walltime=03:00:00
+#PBS -l select=6
+#PBS -l walltime=01:00:00
 #PBS -l filesystems=home:grand:eagle
-#PBS -q prod
+#PBS -q debug-scaling
 #PBS -N mofa-test
 #PBS -A APSDataAnalysis
 
@@ -18,9 +18,13 @@ module load conda; conda activate base
 conda activate /eagle/Diaspora/alok/sc25-agentic-mof-workflow/env
 which python
 
+export OPENBLAS_NUM_THREADS=1
+export TMPDIR=/tmp
+
 # Launch MPS on each node
-NNODES=`wc -l < $PBS_NODEFILE`
-mpiexec -n ${NNODES} --ppn 1 ./bin/enable_mps_polaris.sh &
+# NNODES=`wc -l < $PBS_NODEFILE`
+# mpiexec -n ${NNODES} --ppn 1 ./bin/enable_mps_polaris.sh &
+parallel --env _  --nonall --sshloginfile $PBS_NODEFILE "nohup /grand/SuperBERT/alok/sc25-agentic-mof-workflow/bin/enable_mps_polaris.sh &"
 
 # Start Redis
 redis-server --bind 0.0.0.0 --appendonly no --logfile redis.log --protected-mode no &
@@ -39,13 +43,13 @@ python run_parallel_workflow.py \
       --num-epochs 128 \
       --num-samples 1024 \
       --gen-batch-size 128 \
-      --simulation-budget 32768 \
-      --md-timesteps 10000 \
+      --simulation-budget 20 \
+      --md-timesteps 100000 \
       --md-snapshots 10 \
       --raspa-timesteps 50000 \
       --lammps-on-ramdisk \
       --dft-opt-steps 1 \
-      --dft-fraction 0.25 \
+      --dft-fraction 0.4 \
       --ai-fraction 0.4 \
       --proxy-threshold 100000 \
       --compute-config polaris
