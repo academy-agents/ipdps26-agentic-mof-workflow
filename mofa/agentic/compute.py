@@ -89,17 +89,12 @@ class FederatedConfig(ComputeConfig):
         # "/flare/proxystore/jgpaul/lammps/build-nompi-cpu/lmp",
         "/flare/Diaspora/alok/agents/lammps/build/lmp",
         "-sf",
-        "hybrid",
         "gpu",
-        "omp",
         "-pk",
         "gpu",
         "1",
         "neigh",
         "no",
-        "-pk",
-        "omp",
-        "16",
     )
     lammps_env: dict[str, str] = dataclasses.field(default_factory=dict)
 

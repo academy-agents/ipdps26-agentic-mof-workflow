@@ -555,7 +555,7 @@ class Validator(MOFABehavior):
         self.runner = LAMMPSRunner(
             lammps_command=config.lammps_command,
             lmp_sims_root_path=config.lmp_sims_root_path,
-            lammps_environ={'OMP_NUM_THREADS': '16',  **config.lammps_environ},
+            lammps_environ={'OMP_NUM_THREADS': '1',  **config.lammps_environ},
             # lammps_environ=config.lammps_environ.copy(),
             delete_finished=config.delete_finished,
             timeout=None,

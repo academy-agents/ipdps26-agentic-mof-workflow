@@ -102,7 +102,7 @@ def get_aurora_config(run_dir: str) -> Config:
         executors=[ai_executor, val_executor],
         run_dir=run_dir,
         initialize_logging=False,
-        retries=1,
+        retries=0,
         app_cache=False,
     )
 
