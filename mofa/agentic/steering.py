@@ -28,11 +28,11 @@ from typing import Any
 import ase
 import parsl
 import pymongo
-from aeris.behavior import action
-from aeris.behavior import Behavior
-from aeris.behavior import loop
-from aeris.logging import init_logging
-from aeris.handle import Handle
+from academy.behavior import action
+from academy.behavior import Behavior
+from academy.behavior import loop
+from academy.logging import init_logging
+from academy.handle import Handle
 
 from mofa import db as mofadb
 from mofa.agentic.config import AssemblerConfig
@@ -555,8 +555,8 @@ class Validator(MOFABehavior):
         self.runner = LAMMPSRunner(
             lammps_command=config.lammps_command,
             lmp_sims_root_path=config.lmp_sims_root_path,
-            # lammps_environ={'OMP_NUM_THREADS': '8', **config.lammps_environ},
-            lammps_environ=config.lammps_environ.copy(),
+            lammps_environ={'OMP_NUM_THREADS': '1',  **config.lammps_environ},
+            # lammps_environ=config.lammps_environ.copy(),
             delete_finished=config.delete_finished,
             timeout=None,
         )
@@ -690,10 +690,19 @@ class Validator(MOFABehavior):
                 record.name,
                 100 * strain,
             )
-            self.optimizer.action("submit_mof", record).result(timeout=ACTION_TIMEOUT)
-            self.logger.info("Submitted structure to optimizer (name=%s)", record.name)
-            self.database.action("create_record", record).result(timeout=ACTION_TIMEOUT)
-            self.logger.info("Submitted record to database (name=%s)", record.name)
+
+            try:
+                self.optimizer.action("submit_mof", record).result(timeout=ACTION_TIMEOUT)
+                self.logger.info("Submitted structure to optimizer (name=%s)", record.name)
+                self.database.action("create_record", record).result(timeout=ACTION_TIMEOUT)
+                self.logger.info("Submitted record to database (name=%s)", record.name)
+            except TimeoutError:
+                # This is a hack because we get timeout errors during shutdown
+                # The root problem is the listening loop is shutdown so futures stop resolving
+                if shutdown.is_set():
+                    break
+                else:
+                    raise
 
     def _validate_task_callback(self, future: Future) -> None:
         self.logger.info("END validate-structures %s", future._id)
@@ -752,6 +761,9 @@ class Optimizer(MOFABehavior):
         self.optimizer_count = threading.Semaphore(self.config.num_workers)
         self.optimize_queue = PriorityQueue()
         self.optimize_tasks: set[Future] = set()
+        self.done_submitting = Event() # No new work coming in
+        self.submit_finished = Event() # All work has been submitted to Parsl
+        self.finished = Event() # All work has finished
 
     def on_shutdown(self) -> None:
         self.logger.warning(
@@ -768,6 +780,11 @@ class Optimizer(MOFABehavior):
         self.optimize_queue.put(_Item(priority, record))
         self.logger.info("Added mof to optimizer queue (name=%s)", record.name)
 
+    @action
+    def shutdown_when_finished(self) -> None:
+        self.logger.info("Optimizer shutting down when current work is finished")
+        self.done_submitting.set()
+
     @loop
     def submit_optimization(self, shutdown: Event) -> None:
         # Pull from the optimization queue and submit optimization tasks
@@ -782,6 +799,15 @@ class Optimizer(MOFABehavior):
                 record = item.value
             except Empty:
                 self.optimizer_count.release()
+                if self.done_submitting.is_set(): # No more work is coming
+                    self.submit_finished.set()
+                    self.logger.info("Optimizer done submitting, waiting for current work to finish")
+                    if len(self.optimize_tasks) > 0:
+                        self.finished.wait() # All current work has finished
+                    self.logger.info("Optimizer shutting down.")
+                    shutdown.set() # Shutdown!
+                    break
+
                 continue
 
             if record.name in self.records:
@@ -813,6 +839,9 @@ class Optimizer(MOFABehavior):
             record, atoms = future.result()
         except Exception:
             self.logger.exception("Failure in optimize-cells task")
+            if self.submit_finished.is_set() and  len(self.optimize_tasks) == 0:
+                self.logger.info("Done processing all optimize tasks")
+                self.finished.set()
             return
 
         self.logger.info("Completed optimize-cells task (name=%s)", record.name)
@@ -829,6 +858,9 @@ class Optimizer(MOFABehavior):
         else:
             self.logger.info("Submitted mofs to estimator.")
 
+        if self.submit_finished.is_set() and len(self.optimize_tasks) == 0:
+            self.logger.info("Done processing all optimize tasks")
+            self.finished.set()
 
 class Estimator(MOFABehavior):
     def __init__(
@@ -862,6 +894,9 @@ class Estimator(MOFABehavior):
         self.estimate_queue: Queue[tuple[str, ase.Atoms]] = Queue()
         self.estimate_tasks: set[Future] = set()
         self.records: dict[str, MOFRecord] = {}
+        self.done_submitting = Event()
+        self.submit_finished = Event()
+        self.finished = Event()
 
     def on_shutdown(self) -> None:
         self.logger.warning(
@@ -877,12 +912,24 @@ class Estimator(MOFABehavior):
         self.records[record.name] = record
         self.logger.info("Added atoms to estimator queue (name=%s)", record.name)
 
+    @action
+    def shutdown_when_finished(self) -> None:
+        self.logger.info("Estimator will shutdown after finishing current work")
+        self.done_submitting.set()
+
     @loop
     def submit_estimation(self, shutdown: Event) -> None:
         while not shutdown.is_set():
             try:
                 name, atoms = self.estimate_queue.get(timeout=1)
             except Empty:
+                if self.done_submitting.is_set():
+                    self.submit_finished.set()
+                    self.logger.info("Estimator finished submitting work")
+                    if len(self.estimate_tasks) > 0:
+                        self.finished.wait()
+                    self.logger.info("Estimator shutting down")
+                    shutdown.set()
                 continue
 
             future = estimate_adsorption_task(
@@ -904,6 +951,9 @@ class Estimator(MOFABehavior):
             name, storage_mean, storage_std = future.result()
         except Exception:
             self.logger.exception("Failure in estimate-adsorption task")
+            if self.submit_finished.is_set() and  len(self.estimate_tasks) == 0:
+                self.logger.info("Estimator finished all work")
+                self.finished.set()
             return
 
         self.logger.info("Completed estimate-adsorption task (name=%s)", name)
@@ -913,3 +963,6 @@ class Estimator(MOFABehavior):
         record.times["raspa-done"] = datetime.now()
 
         self.database.action("update_record", record).result(timeout=ACTION_TIMEOUT)
+        if self.submit_finished.is_set() and  len(self.estimate_tasks) == 0:
+            self.logger.info("Estimator finished all work")
+            self.finished.set()

@@ -13,11 +13,11 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import parsl
-from aeris.exception import MailboxClosedError
-from aeris.exchange.redis import RedisExchange
-from aeris.launcher.executor import ExecutorLauncher
-from aeris.logging import init_logging
-from aeris.manager import Manager
+from academy.exception import MailboxClosedError
+from academy.exchange.redis import RedisExchange
+from academy.launcher.executor import ExecutorLauncher
+from academy.logging import init_logging
+from academy.manager import Manager
 from globus_compute_sdk import Executor
 from openbabel import openbabel
 from rdkit import RDLogger
@@ -228,43 +228,27 @@ def create_managers(
     polaris_endpoint: str,
     logger: logging.Logger,
 ) -> typing.Generator[dict[str, Manager], None, None]:
-    exchange = RedisExchange(hostname='localhost', port=57347)
+    exchange = RedisExchange(hostname='129.114.109.16', port=6379, password=os.getenv("REDIS_PASSWORD", None))
 
     cpu_launcher = ExecutorLauncher(Executor(cpu_endpoint), close_exchange=True)
     polaris_launcher = ExecutorLauncher(Executor(polaris_endpoint), close_exchange=True)
     thread_launcher = ExecutorLauncher(ThreadPoolExecutor(2), close_exchange=False)
 
-    cpu_manager = Manager(exchange=exchange, launcher=cpu_launcher)
-    polaris_manager = Manager(exchange=exchange, launcher=polaris_launcher)
-    thread_manager = Manager(exchange=exchange, launcher=thread_launcher)
-
-    managers = {
-        "cpu": cpu_manager,
-        "polaris": polaris_manager,
-        "thread": thread_manager,
+    launchers = {
+        "cpu": cpu_launcher,
+        "polaris": polaris_launcher,
+        "thread": thread_launcher,
     }
 
-    logger.info("Initialized managers!")
-    try:
-        yield managers
-    finally:
-        logger.info("Shutting down managers...")
-        for manager in managers.values():
-            for agent_id in manager.launcher.running():
-                handle = manager._handles[agent_id]
-                with contextlib.suppress(MailboxClosedError):
-                    handle.shutdown()
-            manager._multiplexer.close_bound_handles()
-            manager._multiplexer.close_mailbox()
-            manager._listener_thread.join()
-            manager.launcher.close()
-        exchange.close()
-        logger.info("All managers shutdown!")
+    with Manager(exchange=exchange, launcher=launchers) as manager:
+        logger.info("Initialized manager!")
+        yield manager
 
+    logger.info("All managers shutdown!")
 
 def run(  # noqa: PLR0913
     *,
-    managers: dict[str, Manager],
+    manager: Manager,
     database_config: DatabaseConfig,
     generator_config: GeneratorConfig,
     trainer_config: TrainerConfig,
@@ -275,20 +259,20 @@ def run(  # noqa: PLR0913
     logger: logging.Logger,
 ) -> None:
     # Register agents; all managers use the same exchange
-    database_id = managers["thread"].exchange.create_agent()
-    generator_id = managers["thread"].exchange.create_agent()
-    assembler_id = managers["thread"].exchange.create_agent()
-    validator_id = managers["thread"].exchange.create_agent()
-    optimizer_id = managers["thread"].exchange.create_agent()
-    estimator_id = managers["thread"].exchange.create_agent()
+    database_id = manager.exchange.register_agent(Database)
+    generator_id = manager.exchange.register_agent(Generator)
+    assembler_id = manager.exchange.register_agent(Assembler)
+    validator_id = manager.exchange.register_agent(Validator)
+    optimizer_id = manager.exchange.register_agent(Optimizer)
+    estimator_id = manager.exchange.register_agent(Estimator)
 
     # Construct unbound handles to share with agent behaviors
-    database_handle = managers["thread"].exchange.create_handle(database_id)
-    assembler_handle = managers["thread"].exchange.create_handle(assembler_id)
-    validator_handle = managers["thread"].exchange.create_handle(validator_id)
-    generator_handle = managers["thread"].exchange.create_handle(generator_id)
-    optimizer_handle = managers["thread"].exchange.create_handle(optimizer_id)
-    estimator_handle = managers["thread"].exchange.create_handle(estimator_id)
+    database_handle = manager.exchange.get_handle(database_id)
+    assembler_handle = manager.exchange.get_handle(assembler_id)
+    validator_handle = manager.exchange.get_handle(validator_id)
+    generator_handle = manager.exchange.get_handle(generator_id)
+    optimizer_handle = manager.exchange.get_handle(optimizer_id)
+    estimator_handle = manager.exchange.get_handle(estimator_id)
 
     # Intialize agent behaviors
     generator_behavior = Generator(
@@ -322,20 +306,34 @@ def run(  # noqa: PLR0913
     logger.info("Initialized agent behaviors")
 
     # Launch agents using preregistered IDs
-    managers["cpu"].launch(database_behavior, agent_id=database_id)
-    managers["thread"].launch(generator_behavior, agent_id=generator_id)
-    managers["cpu"].launch(assembler_behavior, agent_id=assembler_id)
-    managers["thread"].launch(validator_behavior, agent_id=validator_id)
-    managers["polaris"].launch(optimizer_behavior, agent_id=optimizer_id)
-    managers["cpu"].launch(estimator_behavior, agent_id=estimator_id)
+    database_handle = manager.launch(database_behavior, agent_id=database_id, launcher="cpu")
+    generator_handle = manager.launch(generator_behavior, agent_id=generator_id, launcher="thread")
+    assembler_handle = manager.launch(assembler_behavior, agent_id=assembler_id, launcher="cpu")
+    validator_handle = manager.launch(validator_behavior, agent_id=validator_id, launcher="thread")
+    optimizer_handle = manager.launch(optimizer_behavior, agent_id=optimizer_id, launcher="polaris")
+    estimator_handle = manager.launch(estimator_behavior, agent_id=estimator_id, launcher="cpu")
     logger.info("Launched all agents")
     
     try:
-        managers["thread"].wait(validator_id)
+        # Wait for simulation budget to be exhausted
+        manager.wait(validator_id)
+
+        # Shutdown creation of new MOFs
+        generator_handle.shutdown()
+        assembler_handle.shutdown()
+
+        # Wait for work in pipeline to finish
+        optimizer_handle.ping()
+        optimizer_handle.shutdown_when_finished()
+        manager.wait(optimizer_id)
+
+        estimator_handle.ping()
+        estimator_handle.shutdown_when_finished()
+        manager.wait(estimator_id)
     except KeyboardInterrupt:
         # Exiting the context manager will cause the agents to be shutdown.
         logger.info("Requesting validator to shutdown...")
-        managers["thread"].shutdown(validator_id, blocking=True)
+        manager.shutdown(validator_id, blocking=True)
 
 
 def main() -> int:
@@ -374,7 +372,7 @@ def main() -> int:
 
     ccloud_run_dir = pathlib.Path(f"/home/cc/mofa-runs/{start_time}")
     polaris_run_dir = pathlib.Path(
-        f"/eagle/MOFA/jgpaul/scratch/mofa-runs/{start_time}",
+        f"/grand/SuperBERT/alok/mofa-runs/{start_time}",
     )
 
     database_config = DatabaseConfig(
@@ -444,9 +442,9 @@ def main() -> int:
             cpu_endpoint=args.cpu_endpoint,
             polaris_endpoint=args.polaris_endpoint,
             logger=logger,
-        ) as managers:
+        ) as manager:
             run(
-                managers=managers,
+                manager=manager,
                 database_config=database_config,
                 generator_config=generator_config,
                 trainer_config=trainer_config,

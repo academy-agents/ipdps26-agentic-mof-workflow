@@ -11,14 +11,14 @@ python -m mofa.agentic.run \
       --num-epochs 128 \
       --num-samples 1024 \
       --gen-batch-size 128 \
-      --simulation-budget 32768 \
-      --md-timesteps 1000000 \
+      --simulation-budget 0 \
+      --md-timesteps 10000 \
       --md-snapshots 10 \
       --retain-lammps \
-      --raspa-timesteps 50000 \
+      --raspa-timesteps 1000000 \
       --dft-opt-steps 1 \
       --compute-config federated \
-      --cpu-endpoint 166a9195-07cc-496b-96fd-8a4be5aec97a \
-      --polaris-endpoint acb10b91-e811-4d03-a0fc-dc3fb23bca0d \
+      --cpu-endpoint b2675547-e5cf-4f1f-9334-fba9b83e93cc \
+      --polaris-endpoint bafaa425-816c-43f1-a4c7-d9ac7d07ee92 \
       --log-level INFO
       # --lammps-on-ramdisk \

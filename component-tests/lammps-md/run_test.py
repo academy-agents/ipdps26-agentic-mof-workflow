@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # Get the length of the runs, etc
     parser = argparse.ArgumentParser()
     parser.add_argument('--timesteps', help='Number of timesteps to run', default=1000, type=int)
-    parser.add_argument('--config', help='Which compute configuration to use', default='local')
+    parser.add_argument('--config', help='Which compute configuration to use', default='polaris')
     args = parser.parse_args()
 
     # Select the correct configuraion
@@ -59,8 +59,7 @@ if __name__ == "__main__":
         lammps_env = None
         config = Config(executors=[HighThroughputExecutor(max_workers=1, cpu_affinity='block')])
     elif args.config == "polaris":
-        lammps_cmd = ('/lus/eagle/projects/ExaMol/mofa/lammps-2Aug2023/build-kokkos-nompi/lmp '
-                      '-k on g 1 -sf kk').split()
+        lammps_cmd = '/lus/eagle/projects/Diaspora/alok/bin/lmp -sf gpu -pk gpu 1 neigh no'.split()
         lammps_env = {'OMP_NUM_THREADS': '1'}
         config = Config(retries=4, executors=[
             HighThroughputExecutor(
@@ -69,17 +68,15 @@ if __name__ == "__main__":
                 available_accelerators=4,
                 provider=PBSProProvider(
                     launcher=MpiExecLauncher(bind_cmd="--cpu-bind", overrides="--depth=64 --ppn 1"),
-                    account='ExaMol',
+                    account='APSDataAnalysis',
                     queue='debug',
                     select_options="ngpus=4",
-                    scheduler_options="#PBS -l filesystems=home:eagle",
+                    scheduler_options="#PBS -l filesystems=home:eagle:grand",
                     worker_init="""
-module load kokkos
-module load nvhpc/23.3
-module list
-source activate /lus/eagle/projects/ExaMol/mofa/mof-generation-at-scale/env-polaris
-
-cd $PBS_O_WORKDIR
+module use /soft/modulefiles; module load conda
+conda activate /eagle/Diaspora/alok/sc25-agentic-mof-workflow/env
+source /eagle/Diaspora/alok/sc25-agentic-mof-workflow/bin/enable_mps_polaris.sh
+cd /grand/SuperBERT/alok/sc25-agentic-mof-workflow/
 pwd
 which python
 hostname
@@ -93,10 +90,9 @@ hostname
                 )
             )
         ])
-    elif args.config == "sunspot":
-        lammps_cmd = ('/home/knight/lammps-git/src/lmp_aurora_gpu-lward '
-                      '-pk gpu 1 -sf gpu').split()
-        lammps_env = {'OMP_NUM_THREADS': '1'}
+    elif args.config == "aurora":
+        lammps_cmd = "/flare/Diaspora/alok/agents/lammps/build/lmp -sf hybrid gpu omp -pk gpu 1 neigh no -pk omp 16".split()
+        lammps_env = {'OMP_NUM_THREADS': '16'}
         accel_ids = [
             f"{gid}.{tid}"
             for gid in range(6)
@@ -106,41 +102,33 @@ hostname
             retries=2,
             executors=[
                 HighThroughputExecutor(
-                    label="sunspot_test",
-                    available_accelerators=accel_ids,  # Ensures one worker per accelerator
+                    label="lammps",
+                    available_accelerators=12,  # Ensures one worker per accelerator
                     cpu_affinity="block",  # Assigns cpus in sequential order
                     prefetch_capacity=0,
                     max_workers=12,
                     cores_per_worker=16,
                     provider=PBSProProvider(
-                        account="CSC249ADCD08_CNDA",
-                        queue="workq",
+                        account="Diaspora",
+                        queue="debug",
                         worker_init="""
-source activate /lus/gila/projects/CSC249ADCD08_CNDA/mof-generation-at-scale/env
-module reset
-module use /soft/modulefiles/
-module use /home/ftartagl/graphics-compute-runtime/modulefiles
-module load oneapi/release/2023.12.15.001
-module load intel_compute_runtime/release/775.20
-module load gcc/12.2.0
-module list
-
-source activate /lus/gila/projects/CSC249ADCD08_CNDA/mof-generation-at-scale/env
-
-cd $PBS_O_WORKDIR
+module load frameworks
+cd /flare/Diaspora/alok/agents/sc25-agentic-mof-workflow
+. ./venv/bin/activate
+export ZE_FLAT_DEVICE_HIERARCHY=COMPOSITE
+export TMPDIR=/tmp
 pwd
 which python
 hostname
                         """,
-                        walltime="1:10:00",
-                        launcher=MpiExecLauncher(
-                            bind_cmd="--cpu-bind", overrides="--depth=208 --ppn 1"
-                        ),  # Ensures 1 manger per node and allows it to divide work among all 208 threads
-                        select_options="system=sunspot,place=scatter",
+                        walltime="1:00:00",
+                        scheduler_options="#PBS -l filesystems=home:flare",
+                        launcher=MpiExecLauncher(bind_cmd="--cpu-bind", overrides="--depth=204 --ppn 1"),
+                        select_options="",
                         nodes_per_block=1,
                         min_blocks=0,
                         max_blocks=1,  # Can increase more to have more parallel batch jobs
-                        cpus_per_node=208,
+                        cpus_per_node=204,
                     ),
                 ),
             ]
@@ -184,7 +172,8 @@ hostname
                 'timesteps': args.timesteps,
                 'mof': mof.name,
                 'runtime': runtime,
-                'strain': strain
+                'strain': strain,
+                'config': args.config,
             }), file=fp)
 
     parsl.dfk().cleanup()

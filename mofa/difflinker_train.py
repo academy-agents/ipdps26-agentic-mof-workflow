@@ -272,5 +272,5 @@ def main(
 
             # Save the last model
             trained_path = run_directory / 'model.ckpt'
-            trainer.save_checkpoint(trained_path)
+            trainer.save_checkpoint(trained_path, weights_only=True)
             return trained_path

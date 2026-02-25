@@ -48,8 +48,6 @@ def train_generator(
         Path to the new model weights
     """
     import torch
-    import intel_extension_for_pytorch as ipex  # noqa: F401
-    import oneccl_bindings_for_pytorch as torch_ccl  # noqa: F401
     from mofa.difflinker_train import get_args, main
 
     # Load configuration from YML file

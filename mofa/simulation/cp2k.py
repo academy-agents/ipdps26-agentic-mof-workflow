@@ -197,7 +197,7 @@ class CP2KRunner:
                         command=self.cp2k_invocation,
                         directory=".",
                         inp=inp,
-                        max_scf=128,
+                        max_scf=15,
                         **options,
                 ) as calc:
                     # Run the calculation

@@ -32,16 +32,16 @@ def get_aurora_config(run_dir: str) -> Config:
     )
     user_opts = {
         "scheduler_options": "#PBS -l filesystems=home:flare",
-        "account": "proxystore",
+        "account": "Diaspora",
         "walltime": "1:00:00",
-        "cpus_per_node": 208,
+        "cpus_per_node": 204,
     }
 
     ai_executor = HighThroughputExecutor(
         label="generator",
         available_accelerators=tile_names,
         max_workers_per_node=len(tile_names),
-        cpu_affinity=cpu_affinity,
+        cpu_affinity="block",
         prefetch_capacity=0,
         heartbeat_period=15,
         heartbeat_threshold=120,
@@ -50,9 +50,10 @@ def get_aurora_config(run_dir: str) -> Config:
             queue="debug",
             worker_init=(
                 "module load frameworks ; "
-                "conda activate /home/jgpaul/envs/mofa ; "
+                "cd /flare/Diaspora/alok/agents/sc25-agentic-mof-workflow ; "
+                ". ./venv/bin/activate ; "
                 "export ZE_FLAT_DEVICE_HIERARCHY=COMPOSITE ; "
-                f"cd /flare/proxystore/jgpaul/agentic-mof-workflow"
+                "export TMPDIR=/tmp"
             ),
             walltime=user_opts["walltime"],
             scheduler_options=user_opts["scheduler_options"],
@@ -68,7 +69,7 @@ def get_aurora_config(run_dir: str) -> Config:
     
     val_executor = HighThroughputExecutor(
         label="validator",
-        available_accelerators=tile_names,
+        available_accelerators=12, # tile_names,
         max_workers_per_node=len(tile_names),
         # TODO
         cores_per_worker=16,
@@ -80,15 +81,14 @@ def get_aurora_config(run_dir: str) -> Config:
             account=user_opts["account"],
             queue="debug-scaling",
             worker_init=(
-                # "module load kokkos ; "
                 "module load frameworks ; "
-                "conda activate /home/jgpaul/envs/mofa ; "
-                # "export ZE_FLAT_DEVICE_HIERARCHY=COMPOSITE ; "
-                f"cd /flare/proxystore/jgpaul/agentic-mof-workflow"
+                "cd /flare/Diaspora/alok/agents/sc25-agentic-mof-workflow ; "
+                ". ./venv/bin/activate ; "
+                "export TMPDIR=/tmp"
             ),
             walltime=user_opts["walltime"],
             scheduler_options=user_opts["scheduler_options"],
-            launcher=MpiExecLauncher(bind_cmd="--cpu-bind", overrides="--depth=208 --ppn 1"),
+            launcher=MpiExecLauncher(bind_cmd="--cpu-bind", overrides="--depth=204 --ppn 1"),
             select_options="",
             nodes_per_block=2,
             init_blocks=0,
@@ -102,7 +102,7 @@ def get_aurora_config(run_dir: str) -> Config:
         executors=[ai_executor, val_executor],
         run_dir=run_dir,
         initialize_logging=False,
-        retries=1,
+        retries=0,
         app_cache=False,
     )
 
@@ -116,7 +116,10 @@ def get_local_config(
         max_workers_per_node=workers_per_node,
         address=address_by_hostname(),
         cores_per_worker=1,
-        provider=LocalProvider(init_blocks=0, max_blocks=1),
+        provider=LocalProvider(
+            init_blocks=0,
+            max_blocks=1,
+        )
     )
     return Config(
         executors=[executor],
@@ -131,11 +134,14 @@ def get_polaris_config(run_dir: str) -> Config:
     user_opts = {
         "worker_init": (
             "module use /soft/modulefiles; module load conda; "
-            "conda activate /eagle/MOFA/jgpaul/agentic-mof-workflow/env; "
-            f"cd /eagle/MOFA/jgpaul/agentic-mof-workflow/"
+            "conda activate /eagle/Diaspora/alok/sc25-agentic-mof-workflow/env; "
+            "cd /grand/SuperBERT/alok/sc25-agentic-mof-workflow/ ; "
+            "rm -rd cp2k-hosts; mkdir cp2k-hosts ; "
+            "split --lines=1 -d --suffix-length=2 $PBS_NODEFILE cp2k-hosts/local_hostfile. ; " # Create single node files for cp2k
+            "export TMPDIR=/tmp"
         ),
-        "scheduler_options": "#PBS -l filesystems=home:eagle",
-        "account": "proxystore",
+        "scheduler_options": "#PBS -l filesystems=home:eagle:grand",
+        "account": "APSDataAnalysis",
         "queue": "debug",
         "walltime": "1:00:00",
         "nodes_per_block": 2,
@@ -148,16 +154,10 @@ def get_polaris_config(run_dir: str) -> Config:
         heartbeat_period=15,
         heartbeat_threshold=120,
         available_accelerators=user_opts["available_accelerators"],
-        max_workers_per_node=user_opts["available_accelerators"],
-        # This give optimal binding of threads to GPUs on a Polaris node
-        # cpu_affinity="list:24-31,56-63:16-23,48-55:8-15,40-47:0-7,32-39",
+        max_workers_per_node=user_opts["nodes_per_block"],
         prefetch_capacity=0,
         provider=PBSProProvider(
             launcher=SimpleLauncher(),
-            # launcher=MpiExecLauncher(
-            #     bind_cmd="--cpu-bind",
-            #     overrides="--depth=64 --ppn 1",
-            # ),
             account=user_opts["account"],
             queue=user_opts["queue"],
             select_options="ngpus=4",

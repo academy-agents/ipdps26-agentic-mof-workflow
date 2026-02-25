@@ -61,29 +61,40 @@ class FederatedConfig(ComputeConfig):
     num_estimator_workers = 8
 
     # Optimizer workers have a single polaris debug job with four GPUs
-    num_optimizer_workers = 8
+    num_optimizer_workers = 2
 
     torch_device = "xpu"
+
+    # @property
+    # def cp2k_cmd(self) -> str:
+    #     worker_id = str(os.environ("PARSL_WORKER_RANK"))
+    #     cpu_map = {
+    #         "0": "list:24-31",
+    #         "1": "list:16-23",
+    #         "2": "list:8-15",
+    #         "3": "list:0-7",
+    #     }
+    #     cpu_ids = cpu_map[worker_id]
+    # 
+    
     # Runs on Polaris
-    cp2k_cmd = (
-        # "module restore && "
-        # "mpiexec -n 1 --ppn 1 --env OMP_NUM_THREADS=8 --hosts $HOSTNAME "
-        # "--cpu-bind depth --depth 8 "
-        # "/lus/eagle/projects/ExaMol/cp2k-2024.1/set_affinity_gpu_polaris.sh "
-        # "/lus/eagle/projects/ExaMol/cp2k-2024.1/exe/local_cuda/cp2k_shell.psmp "
-        "module restore &> /dev/null && "
-        "OMP_NUM_THREADS=8 "
-        "/eagle/MOFA/lward/cp2k-2025.1/exe/local_cuda/cp2k_shell.ssmp"
-    )
+    # TODO: Implement CPU binding for performance
+    cp2k_cmd = (f'mpiexec -n 4 --ppn 4 --cpu-bind depth --depth 8 -env OMP_NUM_THREADS=8 '
+                '--hostfile /grand/SuperBERT/alok/sc25-agentic-mof-workflow/cp2k-hosts/local_hostfile.`printf %02d $PARSL_WORKER_RANK` '
+                '/grand/SuperBERT/alok/scripts/set_affinity_gpu_polaris.sh '
+                '/grand/SuperBERT/alok/cp2k/build/bin/cp2k_shell.psmp')
+
     lammps_cmd = (
         # "/flare/proxystore/jgpaul/lammps/build-cpu/lmp",
-        "/flare/proxystore/jgpaul/lammps/build-nompi-cpu/lmp",
-        # "/flare/proxystore/jgpaul/lammps/build/lmp",
-        # "-sf",
-        # "gpu",
-        # "-pk",
-        # "gpu",
-        # "1",
+        # "/flare/proxystore/jgpaul/lammps/build-nompi-cpu/lmp",
+        "/flare/Diaspora/alok/agents/lammps/build/lmp",
+        "-sf",
+        "gpu",
+        "-pk",
+        "gpu",
+        "1",
+        "neigh",
+        "no",
     )
     lammps_env: dict[str, str] = dataclasses.field(default_factory=dict)
 
